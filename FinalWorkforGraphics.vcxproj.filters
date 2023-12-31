@@ -1,0 +1,151 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="资源文件\着色器">
+      <UniqueIdentifier>{74a67903-91ad-4be3-ae5a-10bee1148607}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="资源文件\纹理">
+      <UniqueIdentifier>{018c8ac3-ef32-4fa2-b871-e650ceb71cf6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="资源文件\模型">
+      <UniqueIdentifier>{da95d209-0e1f-40f5-aaa5-9ac71da86d72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="资源文件\动画">
+      <UniqueIdentifier>{335ab018-cbcb-4946-8076-3415799881b7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FinalWorkforGraphics.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DoException.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dApp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UploadBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dUtil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PeopleModel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="FinalWorkforGraphics.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DoException.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dApp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PeopleModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FinalWorkforGraphics.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="FinalWorkforGraphics.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="Texture\grass.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\WoodCrate01.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\WireFence.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\体.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\颜.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\spa_h.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\髮2.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+    <Image Include="Texture\髮.dds">
+      <Filter>资源文件\纹理</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="Model\3.6.51.fbx">
+      <Filter>资源文件\模型</Filter>
+    </None>
+    <None Include="Shader\color.hlsl">
+      <Filter>资源文件\着色器</Filter>
+    </None>
+    <None Include="Shader\LightUtil.hlsl">
+      <Filter>资源文件\着色器</Filter>
+    </None>
+    <None Include="Shader\PixelShader.hlsl">
+      <Filter>资源文件\着色器</Filter>
+    </None>
+    <None Include="Shader\VertexShader.hlsl">
+      <Filter>资源文件\着色器</Filter>
+    </None>
+    <None Include="Model\目标效果.vmd">
+      <Filter>资源文件\动画</Filter>
+    </None>
+  </ItemGroup>
+</Project>
