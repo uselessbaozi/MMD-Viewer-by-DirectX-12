@@ -63,6 +63,9 @@
     <ClInclude Include="PeopleModel.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CharTrans.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FinalWorkforGraphics.cpp">
@@ -87,6 +90,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="PeopleModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CharTrans.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

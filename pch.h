@@ -13,5 +13,6 @@
 #include "d3dUtil.h"
 #include "UploadBuffer.h"
 #include "MathHelper.h"
+#include "CharTrans.h"
 
 #endif //PCH_H

@@ -147,8 +147,8 @@ bool Demo::Initialize()
 
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	mPeople.Initialize("Model\\3.6.51.fbx");
-	mPeople.LoadMotion(L"Model\\目标效果.vmd");
+	mPeople.Initialize(L"Model\\【芙宁娜】.pmx");
+	//mPeople.LoadMotion(L"Model\\目标效果.vmd");
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
 	LoadTexture();
@@ -567,7 +567,7 @@ void Demo::LoadTexture()
 	auto face(d3dUtilStatic::LoadDDSTexture(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		"C:\\颜",
+		"tex\\颜.png",
 		L"Texture\\颜.dds"
 	));
 	mTexture[face->name] = std::move(face);
@@ -575,7 +575,7 @@ void Demo::LoadTexture()
 	auto body(d3dUtilStatic::LoadDDSTexture(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		"C:\\体",
+		"tex\\体.png",
 		L"Texture\\体.dds"
 	));
 	mTexture[body->name] = std::move(body);
@@ -583,7 +583,7 @@ void Demo::LoadTexture()
 	auto hair(d3dUtilStatic::LoadDDSTexture(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		"C:\\髮",
+		"tex\\髮.png",
 		L"Texture\\髮.dds"
 	));
 	mTexture[hair->name] = std::move(hair);
@@ -591,7 +591,7 @@ void Demo::LoadTexture()
 	auto hair2(d3dUtilStatic::LoadDDSTexture(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		"C:\\髮2",
+		"tex\\髮2.png",
 		L"Texture\\髮2.dds"
 	));
 	mTexture[hair2->name] = std::move(hair2);
@@ -599,8 +599,8 @@ void Demo::LoadTexture()
 	auto spa_h(d3dUtilStatic::LoadDDSTexture(
 		md3dDevice.Get(),
 		mCommandList.Get(),
-		"C:\\spa_h",
-		L"Texture\\髮.dds"
+		"tex\\spa_h.png",
+		L"Texture\\spa_h.dds"
 	));
 	mTexture[spa_h->name] = std::move(spa_h);
 }
@@ -1216,7 +1216,7 @@ void Demo::BuildRenderItems()
 		auto peopleRItem(std::make_unique<RenderItem>());
 		DirectX::XMStoreFloat4x4(
 			&peopleRItem->mWorld,
-			(DirectX::XMMatrixScaling(6, 6, 6) *
+			(DirectX::XMMatrixScaling(0.3, 0.3, 0.3) *
 				DirectX::XMMatrixTranslation(0.0, 0.0, 0.0)
 				));
 		peopleRItem->mObjCBIndex = objCBIndex;

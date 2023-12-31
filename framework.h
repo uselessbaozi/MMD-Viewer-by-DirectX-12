@@ -32,10 +32,7 @@ using CComPtr = Microsoft::WRL::ComPtr<T>;
 #include <map>
 #include <unordered_map>
 #include <fstream>
-
-// FBX_SDK 库
-#include <fbxsdk.h>
-//#pragma comment(lib, "E:\\FBX_SDK\\2020.3.4\\lib\\vs2022\\x64\\debug\\libfbxsdk.lib")
+#include <variant>
 
 // 其他宏
 inline std::wstring AnsiToWString(const std::string& str)
