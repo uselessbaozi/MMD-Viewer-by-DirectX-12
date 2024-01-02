@@ -497,54 +497,6 @@ void Demo::BuildDescriptorHeaps()
 	}
 }
 
-//void Demo::BuildConstantBuffers()
-//{
-//	UINT objCBByteSize = d3dUtilStatic::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-//
-//	UINT objCount = (UINT)mOpaqueRitems.size();
-//
-//	for (int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
-//	{
-//		auto objectCB = mFrameResources[frameIndex]->ObjectCB->GetResource();
-//		for (auto i = 0u; i < objCount; ++i)
-//		{
-//			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objectCB->GetGPUVirtualAddress();
-//
-//			cbAddress += i * objCBByteSize;
-//			
-//			int heapIndex(frameIndex * objCount + i);
-//			auto handle(CD3DX12_CPU_DESCRIPTOR_HANDLE(
-//				mCbvHeap->GetCPUDescriptorHandleForHeapStart()
-//			));
-//			handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
-//
-//			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-//			cbvDesc.BufferLocation = cbAddress;
-//			cbvDesc.SizeInBytes = objCBByteSize;
-//
-//			md3dDevice->CreateConstantBufferView(&cbvDesc, handle);
-//		}
-//	}
-//
-//	UINT passCBByteSize = d3dUtilStatic::CalcConstantBufferByteSize(sizeof(PassConstants));
-//	
-//	for (int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
-//	{
-//		auto passCB = mFrameResources[frameIndex]->PassCB->GetResource();
-//		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
-//
-//		int heapIndex = mPassCbvOffset + frameIndex;
-//		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
-//		handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
-//
-//		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-//		cbvDesc.BufferLocation = cbAddress;
-//		cbvDesc.SizeInBytes = passCBByteSize;
-//
-//		md3dDevice->CreateConstantBufferView(&cbvDesc, handle	);
-//	}
-//}
-
 void Demo::LoadTexture()
 {
 	auto woodCrate(d3dUtilStatic::LoadDDSTexture(
@@ -922,7 +874,7 @@ void Demo::BuildMaterial()
 	water->name = "water";
 	water->matCBIndex = 1;
 	water->diffuseSrvHeapIndex = mTexture["woodCrate"]->offset;
-	water->diffuseAlbedo = { 1.0,1.0,1.1,0.0 };
+	water->diffuseAlbedo = { 1.0,1.0,1.0,0.4 };
 	water->fresnelR0 = { 0.1f, 0.1f, 0.1f };
 	water->roughness = 0.0;
 
@@ -1161,7 +1113,7 @@ void Demo::BuildRenderItems()
 	landRItem->mIndexCount = landRItem->mGeo->DrawArgs["land"].IndexCount;
 	landRItem->mStartIndexLocation = landRItem->mGeo->DrawArgs["land"].StartIndexLocation;
 	landRItem->mBaseVertexLocation = landRItem->mGeo->DrawArgs["land"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(landRItem));
+	mAllRitems.push_back(std::move(landRItem));/*
 
 	auto mirrorRItem(std::make_unique<RenderItem>());
 	mirrorRItem->mWorld = MathHelper::Identity4x4();
@@ -1185,18 +1137,18 @@ void Demo::BuildRenderItems()
 	wallRItem->mIndexCount = wallRItem->mGeo->DrawArgs["wall"].IndexCount;
 	wallRItem->mStartIndexLocation = wallRItem->mGeo->DrawArgs["wall"].StartIndexLocation;
 	wallRItem->mBaseVertexLocation = wallRItem->mGeo->DrawArgs["wall"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(wallRItem));
+	mAllRitems.push_back(std::move(wallRItem));*/
 
-	DirectX::XMVECTOR mirrorPlane = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	DirectX::XMMATRIX R = DirectX::XMMatrixReflect(mirrorPlane);
-	auto reflectBox(std::make_unique<RenderItem>());
-	*reflectBox = *mAllRitems[0];
-	DirectX::XMStoreFloat4x4(
-		&reflectBox->mWorld,
-		DirectX::XMLoadFloat4x4(&reflectBox->mWorld) * R
-	);
-	reflectBox->mObjCBIndex = 5;
-	mAllRitems.push_back(std::move(reflectBox));
+	//DirectX::XMVECTOR mirrorPlane = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	//DirectX::XMMATRIX R = DirectX::XMMatrixReflect(mirrorPlane);
+	//auto reflectBox(std::make_unique<RenderItem>());
+	//*reflectBox = *mAllRitems[0];
+	//DirectX::XMStoreFloat4x4(
+	//	&reflectBox->mWorld,
+	//	DirectX::XMLoadFloat4x4(&reflectBox->mWorld) * R
+	//);
+	//reflectBox->mObjCBIndex = 3;
+	//mAllRitems.push_back(std::move(reflectBox));
 
 	DirectX::XMVECTOR shadowPlane = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
 	DirectX::XMVECTOR toMainLight = DirectX::operator-(DirectX::XMLoadFloat3(&mMainPassCB.Lights[2].Direction));
@@ -1205,12 +1157,12 @@ void Demo::BuildRenderItems()
 	auto shadowRItem(std::make_unique<RenderItem>());
 	*shadowRItem = *mAllRitems[0];
 	DirectX::XMStoreFloat4x4(&shadowRItem->mWorld, DirectX::XMLoadFloat4x4(&shadowRItem->mWorld) * S * shadowOffsetY);
-	shadowRItem->mObjCBIndex = 6;
+	shadowRItem->mObjCBIndex = 3;
 	shadowRItem->mMat = mMaterials["shadow"].get();
 	shadowRItem->mMatCBIndex = shadowRItem->mMat->matCBIndex;
 	mAllRitems.push_back(std::move(shadowRItem));
 
-	int objCBIndex(7);
+	int objCBIndex(4);
 	for(auto& iter:mGeometries["people"]->DrawArgs)
 	{
 		auto peopleRItem(std::make_unique<RenderItem>());
@@ -1234,12 +1186,12 @@ void Demo::BuildRenderItems()
 	mAlphaTestRItems.push_back(mAllRitems[0].get());
 	mOpaqueRitems.push_back(mAllRitems[1].get());
 	mTransRItems.push_back(mAllRitems[2].get());
-	mTransRItems.push_back(mAllRitems[3].get());
+	mTransRItems.push_back(mAllRitems[3].get());/*
 	mMirror.push_back(mAllRitems[3].get());
-	mOpaqueRitems.push_back(mAllRitems[4].get());
-	mReflect.push_back(mAllRitems[5].get());
-	mShadow.push_back(mAllRitems[6].get());
-	for (int i = 7; i < objCBIndex; ++i)
+	mOpaqueRitems.push_back(mAllRitems[4].get());*/
+	//mReflect.push_back(mAllRitems[3].get());
+	mShadow.push_back(mAllRitems[3].get());
+	for (int i = 4; i < objCBIndex; ++i)
 	{
 		mPeopleRItems.push_back(mAllRitems[i].get());
 	}
