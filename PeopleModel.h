@@ -11,6 +11,12 @@ static int MaterialIndexType;
 static int RigidIndexType;
 namespace d3dModel
 {
+	struct UnionIndex
+	{
+		variant<uint8_t, uint16_t, uint32_t> x;
+		operator int() const;
+	};
+
 	struct Text
 	{
 		int size;
@@ -173,6 +179,8 @@ namespace d3dModel
 		SkeletonLocal skeletonLocal;
 		Exoskeleton exoSkeleton;
 		IK ik;
+
+		vector<int> childIndex;
 	};
 	static ifstream& operator>>(ifstream& in, Skeleton& o);
 
@@ -200,7 +208,7 @@ namespace d3dModel
 		BoneAnimation() :translation(0.0, 0.0, 0.0), rotation(0.0, 0.0, 0.0, 1.0), frameTime(0) {}
 		BoneAnimation(float t[3], float r[4], uint32_t f) :translation(t[0] * 0.04, t[1] * 0.04, t[2] * 0.04), rotation(-r[0], -r[1], r[2], r[3]), frameTime(f) {}
 	};
-	DirectX::XMMATRIX GetTransformMatrix(BoneAnimation& start, BoneAnimation& end, float percent, std::pair<DirectX::XMVECTOR, DirectX::XMVECTOR> & datum);
+	DirectX::XMMATRIX GetTransformMatrix(BoneAnimation& start, BoneAnimation& end, float percent);
 
 	class PeopleModel
 	{
@@ -222,11 +230,11 @@ namespace d3dModel
 		std::vector<std::unique_ptr<d3dUtil::Material>> mMaterial;
 		std::vector<std::string> mMaterialByIndex;
 		std::vector<std::string> mTextureName;
-		std::vector<std::pair<std::string, int>> mSkeleton;
+		std::vector<Skeleton> mSkeleton;
 		std::unordered_map<std::string, int> mSkeletonWithIndex;
+		std::vector<int> mIKSkeleton;
+		std::vector<int> mInheritSkeleton;
 		std::vector<DirectX::XMFLOAT4X4> mSkeletonTransform;
-		std::vector<DirectX::XMFLOAT4X4> mSkeletonTransformLink;
-		std::vector<std::pair<DirectX::XMVECTOR, DirectX::XMVECTOR>> mSkeletonPoint;
 		std::vector<std::vector<BoneAnimation>> mSkeletonMotion;
 	};
 }

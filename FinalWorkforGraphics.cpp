@@ -148,7 +148,7 @@ bool Demo::Initialize()
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	mPeople.Initialize(L"Model\\【芙宁娜】.pmx");
-	//mPeople.LoadMotion(L"Model\\目标效果.vmd");
+	mPeople.LoadMotion(L"Model\\动作 Sour.vmd");
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
 	LoadTexture();
