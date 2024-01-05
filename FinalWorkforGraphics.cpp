@@ -294,18 +294,35 @@ void Demo::Draw()
 
 void Demo::UpdateCamera()
 {
-	// Convert Spherical to Cartesian coordinates.
+	using namespace DirectX;
+
+	// 计算摄像机的世界坐标
 	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
 	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
 	mEyePos.y = mRadius * cosf(mPhi);
 
-	// Build the view matrix.
-	DirectX::XMVECTOR pos = DirectX::XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-	DirectX::XMVECTOR target = DirectX::XMVectorZero();
-	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	// 创建相关的向量
+	XMVECTOR pos = DirectX::XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
+	XMVECTOR target = DirectX::XMVectorZero();
+	XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(pos, target, up);
-	DirectX::XMStoreFloat4x4(&mView, view);
+	// 各方向轴向量
+	auto zAxis(XMVector3Normalize(target - pos));
+	auto xAxis(XMVector3Normalize(XMVector3Cross(up, zAxis)));
+	auto yAxis(XMVector3Cross(zAxis, xAxis));
+
+	// 平移坐标
+	auto x(-XMVectorGetX(XMVector3Dot(xAxis, pos)));
+	auto y(-XMVectorGetX(XMVector3Dot(yAxis, pos)));
+	auto z(-XMVectorGetX(XMVector3Dot(zAxis, pos)));
+
+	// 保存
+	mView = XMFLOAT4X4(
+		xAxis.m128_f32[0], yAxis.m128_f32[0], zAxis.m128_f32[0], 0.0,
+		xAxis.m128_f32[1], yAxis.m128_f32[1], zAxis.m128_f32[1], 0.0,
+		xAxis.m128_f32[2], yAxis.m128_f32[2], zAxis.m128_f32[2], 0.0,
+		x, y, z, 1.0
+	);
 }
 
 void Demo::UpdateObjectCBs()

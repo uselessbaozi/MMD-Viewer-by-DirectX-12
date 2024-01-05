@@ -420,7 +420,7 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 	}
 
 	frameTime = 0;
-	motionTime = 205;
+	++motionTime;
 	if (mSkeletonMotion.empty())
 	{
 		for (auto i = 0u; i < mMeshSize; ++i)
