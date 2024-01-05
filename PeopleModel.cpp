@@ -302,6 +302,7 @@ void d3dModel::PeopleModel::Initialize(const wchar_t* fileName)
 		}
 	}
 	mSkeletonTransform.resize(skeletonNum);
+	mSkeletonOriTransform.resize(skeletonNum);
 	mSkeletonMotion.resize(skeletonNum);
 
 	model.close();
@@ -323,12 +324,12 @@ void d3dModel::PeopleModel::LoadMotion(const wchar_t* fileName)
 	}
 
 	uint32_t boneKeyFrameNumber;
-	BoneKeyFrame tempBoneKeyFrame;
 	file.read((char*)&boneKeyFrameNumber, sizeof(uint32_t));
 	if (boneKeyFrameNumber)
 	{
 		for (auto i = 0u; i < boneKeyFrameNumber; ++i)
 		{
+			BoneKeyFrame tempBoneKeyFrame;
 			file >> tempBoneKeyFrame;
 			if (mSkeletonWithIndex.find(tempBoneKeyFrame.name) == mSkeletonWithIndex.end())
 				continue;
@@ -341,6 +342,8 @@ void d3dModel::PeopleModel::LoadMotion(const wchar_t* fileName)
 			continue;
 		sort(iter.begin(), iter.end(), [](const BoneAnimation& o1, const BoneAnimation& o2) { return o1.frameTime < o2.frameTime; });
 	}
+
+	file.close();
 }
 
 int d3dModel::PeopleModel::Load(std::unordered_map<std::string, std::unique_ptr<d3dUtil::MeshGeometry>>& geo, std::unordered_map<std::string, std::unique_ptr<d3dUtil::Material>>& mat, std::unordered_map<std::string, std::unique_ptr<d3dUtil::Texture>>& tex, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
@@ -410,14 +413,14 @@ int d3dModel::PeopleModel::Load(std::unordered_map<std::string, std::unique_ptr<
 void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 {
 	static int frameTime(10), motionTime(-1);
-	if (frameTime < 0)
+	if (frameTime < 10)
 	{
 		++frameTime;
 		return;
 	}
 
 	frameTime = 0;
-	++motionTime;
+	motionTime = 205;
 	if (mSkeletonMotion.empty())
 	{
 		for (auto i = 0u; i < mMeshSize; ++i)
@@ -429,20 +432,24 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 
 	if (mSkeletonMotion[0].empty())
 	{
-		mSkeletonTransform[0] = MathHelper::Identity4x4();
+		mSkeletonTransform[0] = mSkeletonOriTransform[0] = MathHelper::Identity4x4();
 	}
 	else
 	{
 		auto& motion(mSkeletonMotion[0]);
 		if (motion[0].frameTime >= motionTime)
 		{
-			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0], GetTransformMatrix(motion[0], motion[0], 0.0) *
-				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z));
+			auto temp(GetTransformMatrix(motion[0], motion[0], 0.0));
+			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0],
+				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z) * temp);
+			XMStoreFloat4x4(&mSkeletonOriTransform[0], temp);
 		}
 		else if (motion[motion.size() - 1].frameTime <= motionTime)
 		{
-			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0], GetTransformMatrix(motion[motion.size() - 1], motion[motion.size() - 1], 0.0) *
-				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z));
+			auto temp(GetTransformMatrix(motion[motion.size() - 1], motion[motion.size() - 1], 0.0));
+			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0],
+				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z) * temp);
+			XMStoreFloat4x4(&mSkeletonOriTransform[0], temp);
 		}
 		else
 		{
@@ -460,8 +467,10 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 			}
 
 			float percent(((static_cast<float>(motionTime)) - startMotionTime) / (endMotionTime - startMotionTime));
-			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0], GetTransformMatrix(motion[startIndex], motion[endIndex], percent) *
-				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z));
+			auto temp(GetTransformMatrix(motion[startIndex], motion[endIndex], percent));
+			DirectX::XMStoreFloat4x4(&mSkeletonTransform[0], 
+				XMMatrixTranslation(mSkeleton[0].position.x, mSkeleton[0].position.y, mSkeleton[0].position.z) * temp);
+			XMStoreFloat4x4(&mSkeletonOriTransform[0], temp);
 		}
 	}
 	for (auto i = 1u; i < mSkeletonTransform.size(); ++i)
@@ -489,6 +498,7 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 		{
 			DirectX::XMStoreFloat4x4(&mSkeletonTransform[i],
 				parentOffset * parentTrans);
+			mSkeletonOriTransform[i] = MathHelper::Identity4x4();
 			continue;
 		}
 		if (motion[0].frameTime >= motionTime)
@@ -496,12 +506,14 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 			auto temp(GetTransformMatrix(motion[0], motion[0], 0.0));
 			DirectX::XMStoreFloat4x4(&mSkeletonTransform[i],
 				temp * parentOffset * parentTrans);
+			XMStoreFloat4x4(&mSkeletonOriTransform[i], temp);
 		}
 		else if (motion[motion.size() - 1].frameTime <= motionTime)
 		{
 			auto temp(GetTransformMatrix(motion[motion.size() - 1], motion[motion.size() - 1], 0.0));
 			DirectX::XMStoreFloat4x4(&mSkeletonTransform[i],
 				temp * parentOffset * parentTrans);
+			XMStoreFloat4x4(&mSkeletonOriTransform[i], temp);
 		}
 		else
 		{
@@ -522,6 +534,7 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 			auto temp(GetTransformMatrix(motion[startIndex], motion[endIndex], percent));
 			DirectX::XMStoreFloat4x4(&mSkeletonTransform[i],
 				temp * parentOffset * parentTrans);
+			XMStoreFloat4x4(&mSkeletonOriTransform[i], temp);
 		}
 	}
 
@@ -529,60 +542,14 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 	{
 		auto& ik(mSkeleton[iter]);
 
-		int ikParentIndex(static_cast<UnionIndex>(mSkeleton[iter].parentIndex));
-		Vector3 ikParentPos(mSkeleton[ikParentIndex].position);
-		XMFLOAT3 ikLocalPos(
-			ik.position.x - ikParentPos.x,
-			ik.position.y - ikParentPos.y,
-			ik.position.z - ikParentPos.z
-		);
-		if (!mSkeletonMotion[iter].empty())
-		{
-			auto motion(mSkeletonMotion[iter]);
-			if (motion[0].frameTime >= motionTime)
-			{
-				auto temp(GetTransformMatrix(motion[0], motion[0], 0.0));
-				XMStoreFloat3(&ikLocalPos, XMVector3TransformCoord(XMLoadFloat3(&ikLocalPos), temp));
-			}
-			else if (motion[motion.size() - 1].frameTime <= motionTime)
-			{
-				auto temp(GetTransformMatrix(motion[motion.size() - 1], motion[motion.size() - 1], 0.0));
-				XMStoreFloat3(&ikLocalPos, XMVector3TransformCoord(XMLoadFloat3(&ikLocalPos), temp));
-			}
-			else
-			{
-				int startMotionTime(0), endMotionTime(0), startIndex(0), endIndex(0);
-				for (auto j = 0u; j < motion.size(); ++j)
-				{
-					if (motionTime < motion[j].frameTime)
-					{
-						startIndex = j - 1;
-						endIndex = j;
-						startMotionTime = motion[j - 1].frameTime;
-						endMotionTime = motion[j].frameTime;
-						break;
-					}
-				}
-
-				float percent(((static_cast<float>(motionTime)) - startMotionTime) / (endMotionTime - startMotionTime));
-				auto temp(GetTransformMatrix(motion[startIndex], motion[endIndex], percent));
-				XMStoreFloat3(&ikLocalPos, XMVector3TransformCoord(XMLoadFloat3(&ikLocalPos), temp));
-			}
-		}
-		else
-		{
-			continue;
-		}
+		//int ikParentIndex(static_cast<UnionIndex>(mSkeleton[iter].parentIndex));
+		Vector3 ppp(mSkeleton[static_cast<UnionIndex>(ik.ik.link[ik.ik.link.size() - 1].index)].position);
+		XMFLOAT3 ikParentPos;
+		XMStoreFloat3(&ikParentPos, XMVector3TransformCoord(XMVectorZero(), XMLoadFloat4x4(&mSkeletonTransform[static_cast<UnionIndex>(ik.ik.link[ik.ik.link.size() - 1].index)])));
 		int finalSkeletonIndex(static_cast<UnionIndex>(ik.ik.index));
-		XMFLOAT3 finalSkeletonLocalPos(
-			mSkeleton[finalSkeletonIndex].position.x - ikParentPos.x,
-			mSkeleton[finalSkeletonIndex].position.y - ikParentPos.y,
-			mSkeleton[finalSkeletonIndex].position.z - ikParentPos.z
-		);
 
 		vector<int> ikLinkIndex;
 		vector<AngleLimit> ikLinkLimit;
-		vector<Vector3> ikLinkPos;
 		for (auto& i : ik.ik.link)
 		{
 			int tempIndex(static_cast<UnionIndex>(i.index));
@@ -590,42 +557,127 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 				throw - 1;
 			ikLinkIndex.push_back(tempIndex);
 			ikLinkLimit.push_back(i.angleLimit);
-			ikLinkPos.push_back(mSkeleton[tempIndex].position);
-		}
-		vector<XMFLOAT3> ikLinkLocalPos;
-		for (auto& i : ikLinkPos)
-		{
-			ikLinkLocalPos.push_back(XMFLOAT3(
-				i.x - ikParentPos.x,
-				i.y - ikParentPos.y,
-				i.z - ikParentPos.z
-			));
 		}
 
 		vector<XMVECTOR> tempIKLinkLocalPos;
-		for (auto& i : ikLinkLocalPos)
+		for (auto& i : ikLinkIndex)
 		{
-			tempIKLinkLocalPos.push_back(XMLoadFloat3(&i));
+			tempIKLinkLocalPos.push_back(
+				XMVector3TransformCoord(XMVectorZero(), XMLoadFloat4x4(&mSkeletonTransform[i])/** XMMatrixTranslation(-ikParentPos.x, -ikParentPos.y, -ikParentPos.z)*/)
+			);
 		}
-		auto tempFinalSkeletonLocalPos(XMLoadFloat3(&finalSkeletonLocalPos)),
-			tempTargetLocalPos(XMLoadFloat3(&ikLocalPos));
-		vector<XMMATRIX> tempIKLinkTransform(tempIKLinkLocalPos.size(), XMMatrixIdentity());
+		vector<XMVECTOR> iiiiii(tempIKLinkLocalPos);
+		auto tempFinalSkeletonLocalPos(XMVector3TransformCoord(
+			XMVectorZero(),
+			XMLoadFloat4x4(&mSkeletonTransform[finalSkeletonIndex])/**
+			XMMatrixTranslation(-ikParentPos.x, -ikParentPos.y, -ikParentPos.z)*/
+		)),
+			tempTargetLocalPos(XMVector3TransformCoord(
+				XMVectorZero(),
+				XMLoadFloat4x4(&mSkeletonTransform[iter])/**
+				XMMatrixTranslation(-ikParentPos.x, -ikParentPos.y, -ikParentPos.z)*/
+			));
+
+		auto tttt(tempFinalSkeletonLocalPos);
+
+		vector<XMFLOAT3> finalPos;
 
 		for (auto i = 0; i < ik.ik.loopTimes; ++i)
 		{
-			if (XMVector3LengthSq(tempFinalSkeletonLocalPos - tempTargetLocalPos).m128_f32[0] < 1e-6)
+			if (XMVectorGetX(XMVector3LengthSq(tempFinalSkeletonLocalPos - tempTargetLocalPos)) < 1e-6)
 				break;
 			for (auto j = 0u; j < tempIKLinkLocalPos.size(); ++j)
 			{
 				auto now(tempFinalSkeletonLocalPos - tempIKLinkLocalPos[j]),
 					target(tempTargetLocalPos - tempIKLinkLocalPos[j]);
 				auto axis(XMVector3Cross(now, target));
+				if (XMVector3Equal(axis, XMVectorZero()))
+					continue;
 				auto angle(XMVectorGetX(XMVector3AngleBetweenVectors(now, target)));
 				auto trans(XMMatrixRotationAxis(axis, angle));
+				/*if (ik.ik.link[j].angleLimitFlag)
+				{
+					XMFLOAT4 q;
+					XMStoreFloat4(&q, XMQuaternionRotationMatrix(trans));
+					float Yaw, Pitch, Roll;
+
+					double sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
+					double cosr_cosp = 1 - 2 * (q.x * q.x + q.y * q.y);
+					Roll = std::atan2(sinr_cosp, cosr_cosp);
+
+					double sinp = 2 * (q.w * q.y - q.z * q.x);
+					if (std::abs(sinp) >= 1)
+						Pitch = std::copysign(XM_PI / 2, sinp);
+					else
+						Pitch = std::asin(sinp);
+
+					double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
+					double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
+					Yaw = std::atan2(siny_cosp, cosy_cosp);
+
+					auto maxAngle(ik.ik.link[j].angleLimit.max),
+						minAngle(ik.ik.link[j].angleLimit.min);
+
+					auto clampRoll(clamp(Roll, minAngle.z, maxAngle.z)),
+						clampPitch(clamp(Pitch, minAngle.x, maxAngle.x)),
+						clampYaw(clamp(Yaw, minAngle.y, maxAngle.y));
+					if (clampRoll != Roll || clampPitch != Pitch || clampYaw != Yaw)
+						trans = XMMatrixRotationRollPitchYaw(clampPitch, clampYaw, clampRoll);
+				}*/
 				auto offset(XMMatrixTranslationFromVector(tempIKLinkLocalPos[j]));
 				tempFinalSkeletonLocalPos =
 					XMVector3TransformCoord(tempFinalSkeletonLocalPos, XMMatrixInverse(nullptr, offset) * trans * offset);
-				tempIKLinkTransform[j] *= trans;
+				XMFLOAT3 temptemp;
+				XMStoreFloat3(&temptemp, tempFinalSkeletonLocalPos);
+				finalPos.push_back(temptemp);
+				for (auto p = 0u; p < j; ++p)
+				{
+					offset = XMMatrixTranslationFromVector(tempIKLinkLocalPos[p] - tempIKLinkLocalPos[j]);
+					tempIKLinkLocalPos[p] = XMVector3TransformCoord(tempIKLinkLocalPos[p], XMMatrixInverse(nullptr, offset) * trans * offset);
+				}
+			}
+		}
+
+		vector<XMMATRIX> iitt;
+		for (auto i = 0u; i < iiiiii.size(); ++i)
+		{
+			if (!i)
+			{
+				auto now(tempFinalSkeletonLocalPos - tempIKLinkLocalPos[i]),
+					target(tttt - iiiiii[i]);
+				auto axis(XMVector3Cross(now, target));
+				if (XMVector3Equal(axis, XMVectorZero()))
+				{
+					iitt.push_back(XMMatrixIdentity());
+					continue;
+				}
+				auto angle(XMVectorGetX(XMVector3AngleBetweenVectors(now, target)));
+				if (angle < 1e-3)
+				{
+					iitt.push_back(XMMatrixIdentity());
+					continue;
+				}
+				auto trans(XMMatrixRotationAxis(axis, angle));
+				iitt.push_back(trans);
+			}
+			else
+			{
+				auto now(tempIKLinkLocalPos[i - 1] - tempIKLinkLocalPos[i]),
+					target(iiiiii[i - 1] - iiiiii[i]);
+				auto axis(XMVector3Cross(now, target));
+				if (XMVector3Equal(axis, XMVectorZero()))
+				{
+					iitt.push_back(XMMatrixIdentity());
+					continue;
+				}
+				auto angle(XMVectorGetX(XMVector3AngleBetweenVectors(now, target)));
+				if (angle < 1e-3)
+				{
+					iitt.push_back(XMMatrixIdentity());
+					continue;
+				}
+				auto trans(XMMatrixRotationAxis(axis, angle));
+				iitt.push_back(trans);
 			}
 		}
 
@@ -650,7 +702,28 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 			}
 			XMStoreFloat4x4(
 				&mSkeletonTransform[thisIndex],
-				tempIKLinkTransform[i] * parentOffset * parentTrans
+				XMLoadFloat4x4(&mSkeletonOriTransform[thisIndex])* iitt[i] * parentOffset* parentTrans
+			);
+			XMStoreFloat4x4(
+				&mSkeletonOriTransform[thisIndex],
+				XMLoadFloat4x4(&mSkeletonOriTransform[thisIndex])* iitt[i]
+			);
+		}
+
+		auto childIndex(ikLinkIndex[0]);
+		while (mSkeleton[childIndex].childIndex.size())
+		{
+			auto parentIndex(childIndex);
+			childIndex = mSkeleton[childIndex].childIndex[0];
+			XMMATRIX parentTrans(XMLoadFloat4x4(&mSkeletonTransform[parentIndex])),
+				parentOffset(XMMatrixTranslation(
+					mSkeleton[childIndex].position.x - mSkeleton[parentIndex].position.x,
+					mSkeleton[childIndex].position.y - mSkeleton[parentIndex].position.y,
+					mSkeleton[childIndex].position.z - mSkeleton[parentIndex].position.z
+				));
+			XMStoreFloat4x4(
+				&mSkeletonTransform[childIndex],
+				XMLoadFloat4x4(&mSkeletonOriTransform[childIndex])* parentOffset* parentTrans
 			);
 		}
 	}
@@ -660,16 +733,32 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 		int inheritIndex(static_cast<UnionIndex>(mSkeleton[iter].parentSkeleton.index)),
 			inheritParentIndex(static_cast<UnionIndex>(mSkeleton[inheritIndex].parentIndex)),
 			parentIndex(static_cast<UnionIndex>(mSkeleton[iter].parentIndex));
+		XMFLOAT4X4 targetTrans(mSkeletonOriTransform[inheritIndex]);
+
+		//XMStoreFloat4x4(
+		//	&targetTrans,
+		//	XMLoadFloat4x4(&mSkeletonTransform[inheritIndex]) *
+		//	XMMatrixInverse(nullptr, XMLoadFloat4x4(&mSkeletonTransform[inheritParentIndex])) *
+		//	XMMatrixInverse(nullptr, XMMatrixTranslation(
+		//		mSkeleton[inheritIndex].position.x - mSkeleton[inheritParentIndex].position.x,
+		//		mSkeleton[inheritIndex].position.y - mSkeleton[inheritParentIndex].position.y,
+		//		mSkeleton[inheritIndex].position.z - mSkeleton[inheritParentIndex].position.z
+		//	))
+		//);
+
+		if (!(mSkeleton[iter].flag & 0x100))
+		{
+			targetTrans._11 = targetTrans._22 = targetTrans._33 = 1.0;
+			targetTrans._12 = targetTrans._13 = targetTrans._21 = targetTrans._23 = targetTrans._31 = targetTrans._32 = 0.0;
+		}
+		else if (!(mSkeleton[iter].flag & 0x200))
+		{
+			targetTrans._41 = targetTrans._42 = targetTrans._43 = 0.0;
+		}
 
 		XMStoreFloat4x4(
 			&mSkeletonTransform[iter],
-			XMLoadFloat4x4(&mSkeletonTransform[inheritIndex])*
-			XMMatrixInverse(nullptr, XMLoadFloat4x4(&mSkeletonTransform[inheritParentIndex]))*
-			XMMatrixInverse(nullptr, XMMatrixTranslation(
-				mSkeleton[inheritIndex].position.x - mSkeleton[inheritParentIndex].position.x,
-				mSkeleton[inheritIndex].position.y - mSkeleton[inheritParentIndex].position.y,
-				mSkeleton[inheritIndex].position.z - mSkeleton[inheritParentIndex].position.z
-			))*
+			XMLoadFloat4x4(&targetTrans) *
 			XMMatrixTranslation(
 				mSkeleton[iter].position.x - mSkeleton[parentIndex].position.x,
 				mSkeleton[iter].position.y - mSkeleton[parentIndex].position.y,
@@ -677,6 +766,24 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 			)*
 			XMLoadFloat4x4(&mSkeletonTransform[parentIndex])
 		);
+		mSkeletonOriTransform[iter] = targetTrans;
+
+		auto childIndex(iter);
+		while (mSkeleton[childIndex].childIndex.size())
+		{
+			auto parentIndex(childIndex);
+			childIndex = mSkeleton[childIndex].childIndex[0];
+			XMMATRIX parentTrans(XMLoadFloat4x4(&mSkeletonTransform[parentIndex])),
+				parentOffset(XMMatrixTranslation(
+					mSkeleton[childIndex].position.x - mSkeleton[parentIndex].position.x,
+					mSkeleton[childIndex].position.y - mSkeleton[parentIndex].position.y,
+					mSkeleton[childIndex].position.z - mSkeleton[parentIndex].position.z
+				));
+			XMStoreFloat4x4(
+				&mSkeletonTransform[childIndex],
+				XMLoadFloat4x4(&mSkeletonOriTransform[childIndex])* parentOffset* parentTrans
+			);
+		}
 	}
 
 	for (auto i = 0u; i < mMeshSize; ++i)
@@ -686,285 +793,485 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 		auto loadedPos(XMLoadFloat3(&pos)), loadedNormal(XMLoadFloat3(&normal));
 		for (auto j = 0u; j < 4; ++j)
 		{
-			XMVECTOR p, n;
-			p = XMVector3TransformCoord(XMLoadFloat3(&temp.pos), XMMatrixInverse(nullptr, XMMatrixTranslation(mSkeleton[temp.boneIndices[j]].position.x, mSkeleton[temp.boneIndices[j]].position.y, mSkeleton[temp.boneIndices[j]].position.z)));
-			n = XMVector3TransformNormal(XMLoadFloat3(&temp.normal), XMMatrixInverse(nullptr, XMMatrixTranslation(mSkeleton[temp.boneIndices[j]].position.x, mSkeleton[temp.boneIndices[j]].position.y, mSkeleton[temp.boneIndices[j]].position.z)));
+			if (temp.boneWeight[j] == 0.0)
+				break;
+			XMVECTOR p;
+			p = XMVector3TransformCoord(XMLoadFloat3(&temp.pos),
+				XMMatrixTranslation(-mSkeleton[temp.boneIndices[j]].position.x, -mSkeleton[temp.boneIndices[j]].position.y, -mSkeleton[temp.boneIndices[j]].position.z)
+			);
 			loadedPos += temp.boneWeight[j] * XMVector3TransformCoord(p, XMLoadFloat4x4(&mSkeletonTransform[temp.boneIndices[j]]));
-			loadedNormal += temp.boneWeight[j] * XMVector3TransformNormal(DirectX::XMLoadFloat3(&temp.normal), XMLoadFloat4x4(&mSkeletonTransform[temp.boneIndices[j]]));
+			loadedNormal += temp.boneWeight[j] * XMVector3TransformNormal(XMLoadFloat3(&temp.normal), XMLoadFloat4x4(&mSkeletonTransform[temp.boneIndices[j]]));
 		}
 		XMStoreFloat3(&temp.pos, loadedPos);
 		XMStoreFloat3(&temp.normal, loadedNormal);
 		skeleton[i] = temp;
 	}
 }
-	std::ifstream& d3dModel::operator>>(std::ifstream & in, Text & o)
+std::ifstream& d3dModel::operator>>(std::ifstream& in, Text& o)
+{
+	in.read((char*)&o.size, sizeof(int32_t));
+	wchar_t* s(new wchar_t[o.size / 2]);
+	in.read((char*)s, sizeof(char) * o.size);
+	UTF16LE2GBK(s, o.size / 2, o.s);
+	delete[] s;
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Vector4& o)
+{
+	in.read((char*)&o, sizeof(Vector4));
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Vector3& o)
+{
+	in.read((char*)&o, sizeof(Vector3));
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Vector2& o)
+{
+	in.read((char*)&o, sizeof(Vector2));
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, BDEF1& o)
+{
+	switch (SkeletonIndexType)
 	{
-		in.read((char*)&o.size, sizeof(int32_t));
-		wchar_t* s(new wchar_t[o.size / 2]);
-		in.read((char*)s, sizeof(char) * o.size);
-		UTF16LE2GBK(s, o.size / 2, o.s);
-		delete[] s;
-		return in;
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index = x;
+		break;
+	}
+	default:
+		break;
+	}
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, BDEF2& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index0 = x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index1 = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index0 = x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index1 = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index0 = x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index1 = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read((char*)&o.weight, sizeof(float));
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, BDEF4& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x[4];
+		in.read((char*)&x, sizeof(uint8_t) * 4);
+		o.index[0] = x[0];
+		o.index[1] = x[1];
+		o.index[2] = x[2];
+		o.index[3] = x[3];
+		break;
+	}
+	case 1:
+	{
+		uint16_t x[4];
+		in.read((char*)&x, sizeof(uint16_t) * 4);
+		o.index[0] = x[0];
+		o.index[1] = x[1];
+		o.index[2] = x[2];
+		o.index[3] = x[3];
+		break;
+	}
+	case 2:
+	{
+		uint32_t x[4];
+		in.read((char*)&x, sizeof(uint32_t) * 4);
+		o.index[0] = x[0];
+		o.index[1] = x[1];
+		o.index[2] = x[2];
+		o.index[3] = x[3];
+		break;
+	}
+	default:
+		break;
+	}
+	in.read((char*)&o.weight, sizeof(float) * 4);
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Vertex& o)
+{
+	in >> o.position >> o.normal >> o.tex;
+
+	o.extraVec.resize(ExtraVectorNum);
+	for (auto& iter : o.extraVec)
+	{
+		in >> iter;
 	}
 
-	ifstream& d3dModel::operator>>(ifstream & in, Vector4 & o)
+	in.read((char*)&o.weightType, sizeof(char));
+	switch ((unsigned)o.weightType)
 	{
-		in.read((char*)&o, sizeof(Vector4));
-		return in;
+	case 0:
+	{
+		BDEF1 x;
+		in >> x;
+		o.skeletonWeight = x;
+		break;
+	}
+	case 1:
+	{
+		BDEF2 x;
+		in >> x;
+		o.skeletonWeight = x;
+		break;
+	}
+	case 2:
+	{
+		BDEF4 x;
+		in >> x;
+		o.skeletonWeight = x;
+		break;
+	}
+	default:
+		throw - 1;
+		break;
 	}
 
-	ifstream& d3dModel::operator>>(ifstream & in, Vector3 & o)
+	in.read((char*)&o.edgeMagnification, sizeof(float));
+
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Surface& o)
+{
+	switch (VertexIndexType)
 	{
-		in.read((char*)&o, sizeof(Vector3));
-		return in;
+	case 0:
+	{
+		array<uint8_t, 3> x;
+		in.read((char*)x.data(), sizeof(uint8_t) * 3);
+		o.indices = std::move(x);
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Vector2 & o)
+	case 1:
 	{
-		in.read((char*)&o, sizeof(Vector2));
-		return in;
+		array<uint16_t, 3> x;
+		in.read((char*)x.data(), sizeof(uint16_t) * 3);
+		o.indices = std::move(x);
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, BDEF1 & o)
+	case 2:
 	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index = x;
-			break;
-		}
-		default:
-			break;
-		}
-		return in;
+		array<uint32_t, 3> x;
+		in.read((char*)x.data(), sizeof(uint32_t) * 3);
+		o.indices = std::move(x);
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, BDEF2 & o)
-	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index0 = x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index1 = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index0 = x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index1 = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index0 = x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index1 = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read((char*)&o.weight, sizeof(float));
-		return in;
+	default:
+		break;
 	}
+	return in;
+}
 
-	ifstream& d3dModel::operator>>(ifstream & in, BDEF4 & o)
+ifstream& d3dModel::operator>>(ifstream& in, Texture& o)
+{
+	in >> o.file;
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Material& o)
+{
+	in >> o.localName >> o.globalName >> o.diffuse >> o.specular;
+	in.read((char*)&o.specularStrength, sizeof(float));
+	in >> o.ambient;
+	in.read(&o.drawFlag, sizeof(char));
+	in >> o.edgeColor;
+	in.read((char*)&o.edgeRatio, sizeof(float));
+	switch (TextureIndexType)
 	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x[4];
-			in.read((char*)&x, sizeof(uint8_t) * 4);
-			o.index[0] = x[0];
-			o.index[1] = x[1];
-			o.index[2] = x[2];
-			o.index[3] = x[3];
-			break;
-		}
-		case 1:
-		{
-			uint16_t x[4];
-			in.read((char*)&x, sizeof(uint16_t) * 4);
-			o.index[0] = x[0];
-			o.index[1] = x[1];
-			o.index[2] = x[2];
-			o.index[3] = x[3];
-			break;
-		}
-		case 2:
-		{
-			uint32_t x[4];
-			in.read((char*)&x, sizeof(uint32_t) * 4);
-			o.index[0] = x[0];
-			o.index[1] = x[1];
-			o.index[2] = x[2];
-			o.index[3] = x[3];
-			break;
-		}
-		default:
-			break;
-		}
-		in.read((char*)&o.weight, sizeof(float) * 4);
-		return in;
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.textureIndex = x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.textureExIndex = x;
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Vertex & o)
+	case 1:
 	{
-		in >> o.position >> o.normal >> o.tex;
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.textureIndex = x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.textureExIndex = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.textureIndex = x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.textureExIndex = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read(&o.mixMode, sizeof(char));
+	in.read(&o.textureReference, sizeof(char));
+	in.read(&o.textureEx, sizeof(char));
+	in >> o.metadata;
+	in.read((char*)&o.surfaceNum, sizeof(int32_t));
+	return in;
+}
 
-		o.extraVec.resize(ExtraVectorNum);
-		for (auto& iter : o.extraVec)
-		{
-			in >> iter;
-		}
+ifstream& d3dModel::operator>>(ifstream& in, ParentSkeleton& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read((char*)&o.weight, sizeof(float));
+	return in;
+}
 
-		in.read((char*)&o.weightType, sizeof(char));
-		switch ((unsigned)o.weightType)
+ifstream& d3dModel::operator>>(ifstream& in, SkeletonFixed& o)
+{
+	in >> o.axis;
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, SkeletonLocal& o)
+{
+	in >> o.xAxis >> o.zAxis;
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, Exoskeleton& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index = x;
+		break;
+	}
+	default:
+		break;
+	}
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, AngleLimit& o)
+{
+	in >> o.min >> o.max;
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, IKLink& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read(&o.angleLimitFlag, sizeof(char));
+	if (o.angleLimitFlag)
+	{
+		in >> o.angleLimit;
+	}
+	else
+	{
+		o.angleLimit.max = { -1,-1,-1 };
+		o.angleLimit.min = { -1,-1,-1 };
+	}
+	return in;
+}
+
+ifstream& d3dModel::operator>>(ifstream& in, IK& o)
+{
+	switch (SkeletonIndexType)
+	{
+	case 0:
+	{
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.index = x;
+		break;
+	}
+	case 1:
+	{
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.index = x;
+		break;
+	}
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.index = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read((char*)&o.loopTimes, sizeof(int));
+	in.read((char*)&o.angleLimit, sizeof(float));
+	in.read((char*)&o.linkNum, sizeof(int));
+	if (o.linkNum)
+	{
+		for (auto i = 0u; i < o.linkNum; ++i)
 		{
-		case 0:
-		{
-			BDEF1 x;
+			IKLink x;
 			in >> x;
-			o.skeletonWeight = x;
-			break;
-		}
-		case 1:
-		{
-			BDEF2 x;
-			in >> x;
-			o.skeletonWeight = x;
-			break;
-		}
-		case 2:
-		{
-			BDEF4 x;
-			in >> x;
-			o.skeletonWeight = x;
-			break;
-		}
-		default:
-			throw - 1;
-			break;
+			o.link.push_back(x);
 		}
 
-		in.read((char*)&o.edgeMagnification, sizeof(float));
-
-		return in;
 	}
+	return in;
+}
 
-	ifstream& d3dModel::operator>>(ifstream & in, Surface & o)
+ifstream& d3dModel::operator>>(ifstream& in, Skeleton& o)
+{
+	in >> o.localName >> o.globalName >> o.position;
+	switch (SkeletonIndexType)
 	{
-		switch (VertexIndexType)
-		{
-		case 0:
-		{
-			array<uint8_t, 3> x;
-			in.read((char*)x.data(), sizeof(uint8_t) * 3);
-			o.indices = std::move(x);
-			break;
-		}
-		case 1:
-		{
-			array<uint16_t, 3> x;
-			in.read((char*)x.data(), sizeof(uint16_t) * 3);
-			o.indices = std::move(x);
-			break;
-		}
-		case 2:
-		{
-			array<uint32_t, 3> x;
-			in.read((char*)x.data(), sizeof(uint32_t) * 3);
-			o.indices = std::move(x);
-			break;
-		}
-		default:
-			break;
-		}
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Texture & o)
+	case 0:
 	{
-		in >> o.file;
-		return in;
+		uint8_t x;
+		in.read((char*)&x, sizeof(uint8_t));
+		o.parentIndex = x;
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Material & o)
+	case 1:
 	{
-		in >> o.localName >> o.globalName >> o.diffuse >> o.specular;
-		in.read((char*)&o.specularStrength, sizeof(float));
-		in >> o.ambient;
-		in.read(&o.drawFlag, sizeof(char));
-		in >> o.edgeColor;
-		in.read((char*)&o.edgeRatio, sizeof(float));
-		switch (TextureIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.textureIndex = x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.textureExIndex = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.textureIndex = x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.textureExIndex = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.textureIndex = x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.textureExIndex = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read(&o.mixMode, sizeof(char));
-		in.read(&o.textureReference, sizeof(char));
-		in.read(&o.textureEx, sizeof(char));
-		in >> o.metadata;
-		in.read((char*)&o.surfaceNum, sizeof(int32_t));
-		return in;
+		uint16_t x;
+		in.read((char*)&x, sizeof(uint16_t));
+		o.parentIndex = x;
+		break;
 	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, ParentSkeleton & o)
+	case 2:
+	{
+		uint32_t x;
+		in.read((char*)&x, sizeof(uint32_t));
+		o.parentIndex = x;
+		break;
+	}
+	default:
+		break;
+	}
+	in.read((char*)&o.calculateLevel, sizeof(int));
+	in.read((char*)&o.flag, sizeof(uint16_t));
+	if (o.flag & 0x1)
 	{
 		switch (SkeletonIndexType)
 		{
@@ -972,293 +1279,97 @@ void d3dModel::PeopleModel::Update(std::vector<d3dUtil::Vector2>& skeleton)
 		{
 			uint8_t x;
 			in.read((char*)&x, sizeof(uint8_t));
-			o.index = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read((char*)&o.weight, sizeof(float));
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, SkeletonFixed & o)
-	{
-		in >> o.axis;
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, SkeletonLocal & o)
-	{
-		in >> o.xAxis >> o.zAxis;
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Exoskeleton & o)
-	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index = x;
-			break;
-		}
-		default:
-			break;
-		}
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, AngleLimit & o)
-	{
-		in >> o.min >> o.max;
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, IKLink & o)
-	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read(&o.angleLimitFlag, sizeof(char));
-		if (o.angleLimitFlag)
-		{
-			in >> o.angleLimit;
-		}
-		else
-		{
-			o.angleLimit.max = { -1,-1,-1 };
-			o.angleLimit.min = { -1,-1,-1 };
-		}
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, IK & o)
-	{
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.index = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.index = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.index = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read((char*)&o.loopTimes, sizeof(int));
-		in.read((char*)&o.angleLimit, sizeof(float));
-		in.read((char*)&o.linkNum, sizeof(int));
-		if (o.linkNum)
-		{
-			for (auto i = 0u; i < o.linkNum; ++i)
-			{
-				IKLink x;
-				in >> x;
-				o.link.push_back(x);
-			}
-
-		}
-		return in;
-	}
-
-	ifstream& d3dModel::operator>>(ifstream & in, Skeleton & o)
-	{
-		in >> o.localName >> o.globalName >> o.position;
-		switch (SkeletonIndexType)
-		{
-		case 0:
-		{
-			uint8_t x;
-			in.read((char*)&x, sizeof(uint8_t));
-			o.parentIndex = x;
-			break;
-		}
-		case 1:
-		{
-			uint16_t x;
-			in.read((char*)&x, sizeof(uint16_t));
-			o.parentIndex = x;
-			break;
-		}
-		case 2:
-		{
-			uint32_t x;
-			in.read((char*)&x, sizeof(uint32_t));
-			o.parentIndex = x;
-			break;
-		}
-		default:
-			break;
-		}
-		in.read((char*)&o.calculateLevel, sizeof(int));
-		in.read((char*)&o.flag, sizeof(uint16_t));
-		if (o.flag & 0x1)
-		{
-			switch (SkeletonIndexType)
-			{
-			case 0:
-			{
-				uint8_t x;
-				in.read((char*)&x, sizeof(uint8_t));
-				o.finalPosition = x;
-				break;
-			}
-			case 1:
-			{
-				uint16_t x;
-				in.read((char*)&x, sizeof(uint16_t));
-				o.finalPosition = x;
-				break;
-			}
-			case 2:
-			{
-				uint32_t x;
-				in.read((char*)&x, sizeof(uint32_t));
-				o.finalPosition = x;
-				break;
-			}
-			default:
-				break;
-			}
-		}
-		else
-		{
-			Vector3 x;
-			in >> x;
 			o.finalPosition = x;
+			break;
 		}
-		if (o.flag & 0x300)
-		{
-			in >> o.parentSkeleton;
-		}
-		if (o.flag & 0x400)
-		{
-			in >> o.skeletonFixed;
-		}
-		if (o.flag & 0x800)
-		{
-			in >> o.skeletonLocal;
-		}
-		if (o.flag & 0x200)
-		{
-			in >> o.exoSkeleton;
-		}
-		if (o.flag & 0x20)
-		{
-			in >> o.ik;
-		}
-		return in;
-	}
-
-	std::ifstream& d3dModel::operator>>(std::ifstream & fin, BoneKeyFrame & result)
-	{
-		static const auto frameResourceSize(sizeof(uint32_t) + sizeof(float) * 7 + sizeof(uint8_t) * 64);
-		char s[16];
-		fin.read(s, sizeof(char) * 15);
-		SHIFTJIS2GBK(s, result.name);
-		fin.read((char*)&result.FrameResource, frameResourceSize);
-		result.FrameResource.Rotation[0] = -result.FrameResource.Rotation[0];
-		result.FrameResource.Rotation[1] = -result.FrameResource.Rotation[2];
-		result.FrameResource.Rotation[2] = -result.FrameResource.Rotation[1];
-		return fin;
-	}
-
-	DirectX::XMMATRIX d3dModel::GetTransformMatrix(BoneAnimation & start, BoneAnimation & end, float percent)
-	{
-		XMVECTOR t0(XMLoadFloat3(&start.translation)),
-			t1(XMLoadFloat3(&end.translation)),
-			r0(XMLoadFloat4(&start.rotation)),
-			r1(XMLoadFloat4(&end.rotation));
-
-		auto t(XMVectorLerp(t0, t1, percent)),
-			r(XMQuaternionSlerp(r0, r1, percent));
-
-		auto tM(XMMatrixTranslationFromVector(t)),
-			rM(XMMatrixRotationQuaternion(r));
-
-		return rM * tM;
-	}
-
-	d3dModel::UnionIndex::operator int() const
-	{
-		switch (this->x.index())
-		{
-		case 0:
-			return get<uint8_t>(this->x);
 		case 1:
-			return get<uint16_t>(this->x);
+		{
+			uint16_t x;
+			in.read((char*)&x, sizeof(uint16_t));
+			o.finalPosition = x;
+			break;
+		}
 		case 2:
-			return get<uint32_t>(this->x);
+		{
+			uint32_t x;
+			in.read((char*)&x, sizeof(uint32_t));
+			o.finalPosition = x;
+			break;
+		}
 		default:
-			return -1;
+			break;
 		}
 	}
+	else
+	{
+		Vector3 x;
+		in >> x;
+		o.finalPosition = x;
+	}
+	if (o.flag & 0x300)
+	{
+		in >> o.parentSkeleton;
+	}
+	if (o.flag & 0x400)
+	{
+		in >> o.skeletonFixed;
+	}
+	if (o.flag & 0x800)
+	{
+		in >> o.skeletonLocal;
+	}
+	if (o.flag & 0x200)
+	{
+		in >> o.exoSkeleton;
+	}
+	if (o.flag & 0x20)
+	{
+		in >> o.ik;
+	}
+	return in;
+}
+
+std::ifstream& d3dModel::operator>>(std::ifstream& fin, BoneKeyFrame& result)
+{
+	static const auto frameResourceSize(sizeof(uint32_t) + sizeof(float) * 7 + sizeof(uint8_t) * 64);
+	char s[16];
+	fin.read(s, sizeof(char) * 15);
+	SHIFTJIS2GBK(s, result.name);
+	fin.read((char*)&result.FrameResource, sizeof(result.FrameResource));/*
+	result.FrameResource.Rotation[0] = -result.FrameResource.Rotation[0];
+	auto temp(result.FrameResource.Rotation[1]);
+	result.FrameResource.Rotation[1] = -result.FrameResource.Rotation[2];
+	result.FrameResource.Rotation[2] = -temp;*/
+	return fin;
+}
+
+DirectX::XMMATRIX d3dModel::GetTransformMatrix(BoneAnimation& start, BoneAnimation& end, float percent)
+{
+	XMVECTOR t0(XMLoadFloat3(&start.translation)),
+		t1(XMLoadFloat3(&end.translation)),
+		r0(XMLoadFloat4(&start.rotation)),
+		r1(XMLoadFloat4(&end.rotation));
+
+	auto t(XMVectorLerp(t0, t1, percent)),
+		r(XMQuaternionSlerp(r0, r1, percent));
+
+	auto tM(XMMatrixTranslationFromVector(t)),
+		rM(XMMatrixRotationQuaternion(r));
+
+	return rM * tM;
+}
+
+d3dModel::UnionIndex::operator int() const
+{
+	switch (this->x.index())
+	{
+	case 0:
+		return get<uint8_t>(this->x);
+	case 1:
+		return get<uint16_t>(this->x);
+	case 2:
+		return get<uint32_t>(this->x);
+	default:
+		return -1;
+	}
+}

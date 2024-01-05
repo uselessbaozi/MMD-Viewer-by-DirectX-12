@@ -135,9 +135,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Model\3.6.51.fbx">
-      <Filter>资源文件\模型</Filter>
-    </None>
     <None Include="Shader\color.hlsl">
       <Filter>资源文件\着色器</Filter>
     </None>
@@ -150,8 +147,11 @@
     <None Include="Shader\VertexShader.hlsl">
       <Filter>资源文件\着色器</Filter>
     </None>
-    <None Include="Model\目标效果.vmd">
+    <None Include="Model\动作 Sour.vmd">
       <Filter>资源文件\动画</Filter>
+    </None>
+    <None Include="Model\无标题.pmx">
+      <Filter>资源文件\模型</Filter>
     </None>
   </ItemGroup>
 </Project>

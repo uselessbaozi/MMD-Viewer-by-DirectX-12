@@ -38,6 +38,7 @@ namespace d3dModel
 		float x;
 		float y;
 		float z;
+
 	};
 	static ifstream& operator>>(ifstream& in, Vector3& o);
 
@@ -206,7 +207,7 @@ namespace d3dModel
 		uint32_t frameTime;
 
 		BoneAnimation() :translation(0.0, 0.0, 0.0), rotation(0.0, 0.0, 0.0, 1.0), frameTime(0) {}
-		BoneAnimation(float t[3], float r[4], uint32_t f) :translation(t[0] * 0.04, t[1] * 0.04, t[2] * 0.04), rotation(-r[0], -r[1], r[2], r[3]), frameTime(f) {}
+		BoneAnimation(float t[3], float r[4], uint32_t f) :translation(t[0], t[1], t[2]), rotation(r[0], r[1], r[2], r[3]), frameTime(f) {}
 	};
 	DirectX::XMMATRIX GetTransformMatrix(BoneAnimation& start, BoneAnimation& end, float percent);
 
@@ -235,6 +236,7 @@ namespace d3dModel
 		std::vector<int> mIKSkeleton;
 		std::vector<int> mInheritSkeleton;
 		std::vector<DirectX::XMFLOAT4X4> mSkeletonTransform;
+		std::vector<DirectX::XMFLOAT4X4> mSkeletonOriTransform;
 		std::vector<std::vector<BoneAnimation>> mSkeletonMotion;
 	};
 }

@@ -186,7 +186,8 @@
     <Image Include="Texture\髮2.dds" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Model\目标效果.vmd" />
+    <None Include="Model\动作 Sour.vmd" />
+    <None Include="Model\无标题.pmx" />
     <None Include="Shader\color.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
@@ -218,11 +219,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Model\3.6.51.fbx">
-      <FileType>Document</FileType>
-    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

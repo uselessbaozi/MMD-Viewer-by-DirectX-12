@@ -26,6 +26,7 @@ using CComPtr = Microsoft::WRL::ComPtr<T>;
 
 // C++ 标准库
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <memory>
