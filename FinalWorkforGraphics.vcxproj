@@ -185,6 +185,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Model\目标效果.vmd" />
+    <None Include="README.md" />
     <None Include="Shader\color.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
