@@ -118,7 +118,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>E:\FBX_SDK\2020.3.4\lib\vs2022\x64\debug\libfbxsdk-md.lib;E:\FBX_SDK\2020.3.4\lib\vs2022\x64\debug\libxml2-md.lib;E:\FBX_SDK\2020.3.4\lib\vs2022\x64\debug\zlib-md.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -188,6 +188,7 @@
   <ItemGroup>
     <None Include="Model\动作 Sour.vmd" />
     <None Include="Model\无标题.pmx" />
+    <None Include="README.md" />
     <None Include="Shader\color.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
